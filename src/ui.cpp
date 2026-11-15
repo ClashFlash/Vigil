@@ -311,7 +311,7 @@ void Terminal::draw_header(const cpu::CpuMonitor& cpu,
     std::string mem_str = std::to_string(mi.used_mib()) + " / " + std::to_string(mi.total_mib()) + " MiB";
 
     set_cursor(1, 1);
-    printf(ANSI_BOLD ANSI_BCYAN " Linux Security Monitor" ANSI_RESET "%s", ANSI_CLEAR_LINE);
+    printf(ANSI_BOLD ANSI_BCYAN " Vigil" ANSI_RESET "%s", ANSI_CLEAR_LINE);
     // Right-align timestamp
     int ts_len = static_cast<int>(strlen(timebuf));
     if (cols > ts_len + 30) {
@@ -633,7 +633,7 @@ void Terminal::draw_events(const DisplayData& d, const UiState& state,
 void Terminal::draw_help(const UiState& state, int top_row, int rows, int cols) {
     (void)cols;
     set_cursor(top_row, 1);
-    printf(ANSI_BOLD ANSI_BCYAN " ── Linux Security Monitor Guide & Reference ────────────────────────" ANSI_RESET "%s\n", ANSI_CLEAR_LINE);
+    printf(ANSI_BOLD ANSI_BCYAN " ── Vigil Guide & Reference ─────────────────────────────────────────" ANSI_RESET "%s\n", ANSI_CLEAR_LINE);
 
     const char* guide[] = {
         ANSI_BOLD ANSI_BYELLOW "[1] GLOBAL CONTROLS & SHORTCUTS" ANSI_RESET,

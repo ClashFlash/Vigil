@@ -9,18 +9,18 @@ all: debug
 debug:
 	cmake -B $(BUILD_DIR_DEBUG)   -DCMAKE_BUILD_TYPE=Debug   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	cmake --build $(BUILD_DIR_DEBUG)   -j$(CORES)
-	@echo "\n✓ Debug build: $(BUILD_DIR_DEBUG)/monitor"
+	@echo "\n✓ Debug build: $(BUILD_DIR_DEBUG)/vigil"
 
 release:
 	cmake -B $(BUILD_DIR_RELEASE) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR_RELEASE) -j$(CORES)
-	@echo "\n✓ Release build: $(BUILD_DIR_RELEASE)/monitor"
+	@echo "\n✓ Release build: $(BUILD_DIR_RELEASE)/vigil"
 
 test: debug
 	cd $(BUILD_DIR_DEBUG) && ctest --output-on-failure -j$(CORES)
 
 run: debug
-	./$(BUILD_DIR_DEBUG)/monitor
+	./$(BUILD_DIR_DEBUG)/vigil
 
 clean:
 	rm -rf build/

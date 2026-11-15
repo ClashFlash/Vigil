@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(LinuxSecurityMonitor VERSION 1.0.0 LANGUAGES CXX)
+project(Vigil VERSION 1.0.0 LANGUAGES CXX)
 
 # ── C++ standard ──────────────────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)
@@ -45,12 +45,12 @@ target_include_directories(lsm_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(lsm_lib PUBLIC Threads::Threads)
 
 # ── Main binary ───────────────────────────────────────────────────────────────
-add_executable(monitor src/main.cpp)
-target_link_libraries(monitor PRIVATE lsm_lib)
+add_executable(vigil src/main.cpp)
+target_link_libraries(vigil PRIVATE lsm_lib)
 
 # ── Install ───────────────────────────────────────────────────────────────────
-install(TARGETS monitor DESTINATION bin)
-install(DIRECTORY config/ DESTINATION share/linux-security-monitor/config)
+install(TARGETS vigil DESTINATION bin)
+install(DIRECTORY config/ DESTINATION share/vigil/config)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 enable_testing()
@@ -58,7 +58,7 @@ add_subdirectory(tests)
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 message(STATUS "")
-message(STATUS "── Linux Security Monitor ───────────────────")
+message(STATUS "── Vigil ───────────────────────────────────")
 message(STATUS "   Build type : ${CMAKE_BUILD_TYPE}")
 message(STATUS "   C++ flags  : ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "────────────────────────────────────────────")

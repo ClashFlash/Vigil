@@ -84,8 +84,8 @@ int main(int argc, char** argv) {
         events::Category::SYSTEM,
         events::Severity::LOW,
         "main",
-        "Monitor started",
-        "Linux Security Monitor started. Monitoring " +
+        "Vigil started",
+        "Vigil started. Monitoring " +
             std::to_string(cfg.monitored_paths.size()) + " paths."
     });
 

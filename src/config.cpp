@@ -19,7 +19,7 @@ AppConfig AppConfig::defaults() {
     std::filesystem::path data_home = xdg ? xdg
         : (std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/tmp")
            / ".local/share");
-    c.event_log_path = data_home / "linux-security-monitor" / "events.log";
+    c.event_log_path = data_home / "vigil" / "events.log";
     return c;
 }
 

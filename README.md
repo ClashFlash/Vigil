@@ -1,6 +1,8 @@
-# Linux Security Monitor
+# Vigil
 
 A real-time Linux security monitoring tool written in C++17. Displays CPU, memory, processes, network connections, file integrity events, and SSH authentication activity in a terminal dashboard.
+
+> *"btop shows you what's running. Vigil shows you what's wrong."*
 
 ## Features
 
@@ -45,7 +47,7 @@ A real-time Linux security monitoring tool written in C++17. Displays CPU, memor
 
 ### Event System
 - In-memory ring buffer (last 1000 events)
-- Persistent log as JSON Lines at `~/.local/share/linux-security-monitor/events.log`
+- Persistent log as JSON Lines at `~/.local/share/vigil/events.log`
 - Filter by category: Auth / Process / Network / File / System
 - Keyword search
 - Severity levels: LOW / MEDIUM / HIGH / CRITICAL
@@ -64,8 +66,8 @@ A real-time Linux security monitoring tool written in C++17. Displays CPU, memor
 
 ### Quick build
 ```bash
-git clone https://github.com/ClashFlash/linux-security-monitor.git
-cd linux-security-monitor
+git clone https://github.com/ClashFlash/vigil.git
+cd vigil
 make debug      # Debug build with ASan/UBSan
 make release    # Optimized release build
 make test       # Run all unit tests
@@ -79,8 +81,8 @@ cmake -B build/release -DCMAKE_BUILD_TYPE=Release && cmake --build build/release
 
 ### Run
 ```bash
-./build/release/monitor           # most features work unprivileged
-sudo ./build/release/monitor      # needed for /var/log/auth.log
+./build/release/vigil             # most features work unprivileged
+sudo ./build/release/vigil        # needed for /var/log/auth.log
 ```
 
 ## Keyboard Controls

@@ -11,6 +11,7 @@ compile_commands.json
 # Old single-file build
 monitor.cpp
 monitor
+vigil
 
 # Runtime output
 events.log
