@@ -1,116 +1,123 @@
 # Vigil
 
-A real-time Linux security monitoring tool written in C++17. Displays CPU, memory, processes, network connections, file integrity events, and SSH authentication activity in a terminal dashboard.
+<p align="center">
+  <strong>Real-time Linux security monitoring from your terminal.</strong><br />
+  Visibility into processes, network activity, SSH authentication, and file integrity — in one focused dashboard.
+</p>
 
-> *"btop shows you what's running. Vigil shows you what's wrong."*
+<p align="center">
+  <em>“btop shows you what's running. Vigil helps you see what's wrong.”</em>
+</p>
 
-## Features
+---
 
-### System Overview
-- Real-time CPU usage with per-core bars and overall percentage
-- RAM display as `USED / TOTAL MB` with progress bar
-- Current date/time in header
+## Overview
 
-### Process Monitor
-- Full process table: PID, PPID, username, CPU%, MEM%, state, command, executable path, start time
-- Sort by CPU (`c`), Memory (`m`), or PID (`p`)
-- Search/filter by process name (`/`)
-- Process detail screen with open FD count (`Enter`)
-- Anomaly highlighting: processes from `/tmp`, deleted executables, root from suspicious paths
+Vigil is a Linux security monitoring tool written in **C++17**. It combines system visibility with practical security detections in a terminal dashboard, helping operators investigate suspicious process activity, unexpected network changes, SSH authentication events, and file modifications.
 
-### Network Monitor
-- All network interfaces with RX/TX bytes, packets, errors, and live rates
-- Active connections with local/remote address:port, state, PID, and process name
-- Listening ports
-- TCP/TCP6/UDP/UDP6 from `/proc/net/tcp`, `/proc/net/tcp6`, `/proc/net/udp`, `/proc/net/udp6`
-- Detection of newly opened listening ports (vs. baseline at startup)
-- Detection of closed established connections
+Vigil is designed to run locally and make its findings inspectable. Most monitoring features work without elevated privileges; access to protected authentication logs may require running with `sudo`.
 
-### SSH Authentication Monitor
-- Parses `/var/log/auth.log` (falls back to `journalctl -u ssh`)
-- Detects: failed password, invalid user, successful login
-- Records source IP, username, timestamp
-- Brute force detection: configurable threshold (default: 5 failures / 60 seconds)
+## Capabilities
 
-### File Integrity Monitor
-- SHA-256 hashing (built-in, no OpenSSL dependency)
-- Detects: file modification, creation, deletion
-- Configurable watched paths in `config/monitored_files.conf`
-- Runs in its own thread, rescans every 10 seconds
+| Area | What Vigil provides |
+| --- | --- |
+| **System overview** | Live CPU usage, per-core activity, memory usage, and date/time |
+| **Process monitoring** | Process metadata, sorting, search, detail view, and suspicious-path highlighting |
+| **Network monitoring** | Interface traffic, active connections, listening ports, and connection-change detection |
+| **SSH monitoring** | Failed and successful authentication events, source IPs, usernames, and brute-force threshold detection |
+| **File integrity** | Built-in SHA-256 checks for file creation, modification, and deletion |
+| **Detection rules** | Rules for suspicious execution paths, deleted executables, root processes in suspicious locations, and network changes |
+| **Event history** | Categorized events, severity levels, keyword search, and persistent JSONL logging |
+| **Alerting** | Terminal bell and optional desktop notifications |
 
-### Security Rules Engine
-- Process executing from `/tmp`, `/dev/shm`, `/run/user`, `/var/tmp`
-- Process with deleted executable still running
-- Root process (UID=0) from suspicious location → CRITICAL
-- Process that opened a new listening port
-- Process with suspicious outbound connection
+### Detection examples
 
-### Event System
-- In-memory ring buffer (last 1000 events)
-- Persistent log as JSON Lines at `~/.local/share/vigil/events.log`
-- Filter by category: Auth / Process / Network / File / System
-- Keyword search
-- Severity levels: LOW / MEDIUM / HIGH / CRITICAL
+Vigil can highlight or report:
 
-### Alerting
-- Terminal bell (BEL) on HIGH/CRITICAL events
-- Desktop notification via `notify-send` (non-blocking fork/exec)
-- Configurable thresholds in `config/thresholds.conf`
+- Processes executing from locations such as `/tmp`, `/dev/shm`, `/run/user`, and `/var/tmp`.
+- Processes that continue running after their executable has been deleted.
+- Root-owned processes launched from suspicious locations.
+- Newly opened listening ports and suspicious outbound connections.
+- Repeated SSH authentication failures within a configurable time window.
+- Changes to configured files and directories.
 
-## Build
+> **Scope note:** Vigil is a monitoring and alerting tool. Do not interpret an alert as proof of compromise. Validate findings in the context of your host, workloads, and expected activity.
+
+## Quick start
 
 ### Requirements
+
+- Linux
 - GCC 10+ or Clang 12+ with C++17 support
 - CMake 3.16+
-- Internet connection (CMake fetches Google Test automatically)
+- Internet access during the initial test dependency fetch (GoogleTest is fetched by CMake)
 
-### Quick build
+### Build from source
+
 ```bash
 git clone https://github.com/ClashFlash/Vigil.git
-cd vigil
-make debug      # Debug build with ASan/UBSan
-make release    # Optimized release build
-make test       # Run all unit tests
+cd Vigil
+
+make release
+make test
 ```
 
-### Manual CMake
+For a debug build with AddressSanitizer and UndefinedBehaviorSanitizer:
+
 ```bash
-cmake -B build/debug   -DCMAKE_BUILD_TYPE=Debug   && cmake --build build/debug   -j$(nproc)
-cmake -B build/release -DCMAKE_BUILD_TYPE=Release && cmake --build build/release -j$(nproc)
+make debug
 ```
 
 ### Run
+
 ```bash
-./build/release/vigil             # most features work unprivileged
-sudo ./build/release/vigil        # needed for /var/log/auth.log
+./build/release/vigil
 ```
 
-## Keyboard Controls
+Most features work as an ordinary user. Reading protected authentication logs may require elevated privileges:
+
+```bash
+sudo ./build/release/vigil
+```
+
+Run with the least privileges necessary for your environment.
+
+### Manual CMake build
+
+```bash
+cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/debug -j"$(nproc)"
+
+cmake -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release -j"$(nproc)"
+```
+
+## Using the dashboard
 
 | Key | Action |
-|-----|--------|
-| `Tab` / `1`-`4` | Switch panel |
+| --- | --- |
+| `Tab` / `1`–`4` | Switch panel |
 | `q` | Quit |
-| `h` | Help panel |
-| **Processes** | |
-| `↑` `↓` | Navigate |
-| `Enter` | Process detail |
-| `Esc` | Back from detail |
-| `c` / `m` / `p` | Sort by CPU / Memory / PID |
-| `/` | Search by name |
-| **Events** | |
-| `↑` `↓` `PgUp` `PgDn` | Scroll |
-| `f` | Cycle filter (All → Auth → Process → Network → File → System) |
-| `/` | Search events |
-| **Network** | |
-| `↑` `↓` | Scroll connections |
+| `h` | Open help |
+| `↑` / `↓` | Navigate or scroll |
+| `Enter` | Open process details |
+| `Esc` | Return from process details |
+| `c` / `m` / `p` | Sort processes by CPU, memory, or PID |
+| `/` | Search processes or events |
+| `f` | Cycle event filters |
+
+The event filter cycles through **All → Auth → Process → Network → File → System**.
 
 ## Configuration
 
-### `config/monitored_files.conf`
-One path per line. Directories are watched recursively.
+### Monitored paths
 
-### `config/thresholds.conf`
+Edit `config/monitored_files.conf` to define the files and directories watched by the file integrity monitor. Use one path per line; directories are watched recursively.
+
+### Alert thresholds
+
+Edit `config/thresholds.conf` to configure alert behavior and SSH failure detection. Example settings:
+
 ```ini
 terminal_bell=HIGH
 desktop_notify=HIGH
@@ -120,43 +127,79 @@ sound_enabled=true
 notify_enabled=true
 ```
 
-## Architecture & Concurrency
+The event log is stored as JSON Lines at:
 
-```
-main.cpp                  — Startup orchestration, signal handling & synchronized teardown
-├── cpu.{hpp,cpp}         — /proc/stat parser: delta-based CPU% & per-core utilization
-├── memory.{hpp,cpp}      — /proc/meminfo parser: RAM usage, buffers, and swap
-├── process.{hpp,cpp}     — /proc/*/stat & /proc/*/status: thread-safe process cache & sorting
-├── network.{hpp,cpp}     — /proc/net/tcp*, udp*, /proc/net/dev, socket inode resolver
-├── ssh_monitor.{hpp,cpp} — Real-time auth.log / journalctl watcher with regex event extraction
-├── file_integrity.*      — Incremental multi-threaded SHA-256 baseline & anomaly detection
-├── security_rules.*      — Pure-function security rules engine & event deduplicator
-├── event_system.*        — Thread-safe ring buffer (1000 events) + persistent JSONL logging
-├── alert.*               — Rate-limited terminal bell & async notify-send desktop alerts
-├── config.*              — Robust INI/conf parser with aliases, comments, and whitespace trimming
-└── ui.*                  — High-performance ANSI raw TUI dashboard with select-based event loop
+```text
+~/.local/share/vigil/events.log
 ```
 
-### Concurrency & Reliability Highlights
-- **Thread-safe State Snapshots:** The UI event loop operates on local thread-safe snapshots (`procs_snapshot`, `conns_snapshot`) to prevent race conditions during live sorting, filtering, and detail inspection.
-- **Responsive I/O Multiplexing:** Input handling leverages POSIX `select()` on `STDIN_FILENO` with a 50ms polling slice, guaranteeing immediate keystroke responsiveness without stalling background monitoring threads.
-- **Clean Signal Teardown:** Condition variable notifications (`g_shutdown_cv`) ensure background worker threads terminate immediately on `SIGINT`/`SIGTERM` without blocking during sleep cycles.
-- **Port Alert Deduplication:** Dynamic tracking of newly bound listening sockets alerts once upon detection and resets when unbound, preventing notification spam.
+## Architecture
 
-## Testing & Quality Assurance
+Vigil separates system collectors, detection logic, event handling, and terminal presentation.
 
-A comprehensive GoogleTest suite with **61 unit tests** ensures detection accuracy and engine stability across edge cases:
+```text
+main.cpp                  Startup orchestration, signals, and shutdown
+├── cpu.{hpp,cpp}         /proc/stat parsing and CPU utilization
+├── memory.{hpp,cpp}      /proc/meminfo parsing and memory statistics
+├── process.{hpp,cpp}     Process enumeration, cache, sorting, and details
+├── network.{hpp,cpp}     Network interfaces, sockets, and connection tracking
+├── ssh_monitor.{hpp,cpp} Authentication log and journal monitoring
+├── file_integrity.*      SHA-256 baselines and file-change detection
+├── security_rules.*      Detection rules and event deduplication
+├── event_system.*        Thread-safe event buffer and JSONL persistence
+├── alert.*               Terminal and desktop notifications
+├── config.*              Configuration parsing and defaults
+└── ui.*                  Terminal dashboard and input event loop
+```
 
-- **CPU Monitor (7 tests):** Delta CPU usage math, core calculations, and crash resilience on malformed procfs data.
-- **SSH Parser (8 tests):** Failed password patterns, invalid user accounts, combined failures, accepted password/public-key logins, IPv4 and IPv6 source addresses, and empty/unrelated log lines.
-- **File Integrity Monitor (9 tests):** SHA-256 known RFC test vectors, modification, creation, deletion detections, and event emissions.
-- **Security Rules Engine (15 tests):** Execution from `/tmp`, `/dev/shm`, and `/run/user`, deleted running executables, critical alerts for root executions, newly opened listening ports, suspicious outbound connections, and alert deduplication.
-- **Network Hex Parser (13 tests):** Hex-to-IPv4 conversions (loopback, private, broadcast, zeros), port endian conversions (HTTP, HTTPS, SSH, edge values), `/proc/net/tcp` parsing, interface traffic, and connection state checks.
-- **Process Monitor (6 tests):** Process enumeration, sorting by PID/CPU/Memory, regex/substring search filters, and file descriptor detail extraction.
-- **Configuration Engine (3 tests):** Default fallback guarantees, alias normalization, whitespace handling, and comment stripping in configuration files.
+### Reliability considerations
+
+- Thread-safe snapshots are used by the UI when displaying process and connection data.
+- The terminal input loop uses POSIX `select()` with a short polling interval to remain responsive.
+- Background workers are signaled during shutdown so they can exit cleanly on `SIGINT` and `SIGTERM`.
+- Listening-port alerts are deduplicated to reduce repeated notifications for the same active change.
+
+## Tests
+
+Vigil includes a GoogleTest suite covering core parsing, monitoring, and detection behavior. The current project documentation records **61 unit tests** across CPU monitoring, SSH parsing, file integrity, security rules, network parsing, process monitoring, and configuration handling.
+
+Run the tests with:
 
 ```bash
 make test
-# or
-cd build/debug && ctest --output-on-failure
 ```
+
+Or, after configuring a debug build:
+
+```bash
+cd build/debug
+ctest --output-on-failure
+```
+
+## Contributing
+
+Contributions, bug reports, and improvement ideas are welcome.
+
+1. Open an issue to describe a bug or proposed change.
+2. Fork the repository and create a focused feature branch.
+3. Keep changes scoped and include tests where practical.
+4. Run the test suite before submitting.
+5. Open a pull request with a clear summary, motivation, and testing notes.
+
+Please avoid including real credentials, private logs, or sensitive host data in issues and pull requests.
+
+## Security
+
+If you believe you have found a security vulnerability, please avoid publishing exploit details or sensitive information in a public issue. Contact the repository maintainer privately through the contact options available on the GitHub profile.
+
+## Project
+
+**Created and maintained by Flashy | Shivam**
+
+Repository: [github.com/ClashFlash/Vigil](https://github.com/ClashFlash/Vigil)
+
+### License and commercial use
+
+A license file was not present in the repository when this README was reviewed. Until the project publishes an explicit open-source license, users should not assume that they have permission to use, modify, distribute, or commercially exploit the code.
+
+For a genuinely commercial-friendly open-source release, the maintainers should select and add a license (for example, Apache License 2.0 after confirming contributor rights and dependency compatibility). The license file, not this README, defines the applicable permissions and conditions.
