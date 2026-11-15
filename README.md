@@ -66,7 +66,7 @@ A real-time Linux security monitoring tool written in C++17. Displays CPU, memor
 
 ### Quick build
 ```bash
-git clone https://github.com/ClashFlash/vigil.git
+git clone https://github.com/ClashFlash/Vigil.git
 cd vigil
 make debug      # Debug build with ASan/UBSan
 make release    # Optimized release build
