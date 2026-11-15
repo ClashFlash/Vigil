@@ -29,3 +29,9 @@ add_lsm_test(test_security_rules  test_security_rules.cpp)
 add_lsm_test(test_network_parser  test_network_parser.cpp)
 add_lsm_test(test_process         test_process.cpp)
 add_lsm_test(test_config          test_config.cpp)
+
+# ── Feature Showcase Target ──────────────────────────────────────────────────
+add_executable(showcase_features showcase_features.cpp)
+target_link_libraries(showcase_features PRIVATE lsm_lib)
+target_include_directories(showcase_features PRIVATE ${CMAKE_SOURCE_DIR}/include)
+add_test(NAME FeatureShowcase COMMAND showcase_features)

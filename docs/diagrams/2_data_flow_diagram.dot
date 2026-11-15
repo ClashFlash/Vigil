@@ -1,0 +1,107 @@
+digraph DataFlowDiagram {
+    graph [
+        rankdir=LR,
+        bgcolor="#0F172A",
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=16,
+        fontcolor="#F8FAFC",
+        label="\n<< VIGIL — DATA FLOW DIAGRAM (LEVEL 1 DFD) >>\n ",
+        labelloc=t,
+        nodesep=0.6,
+        ranksep=0.9,
+        pad=0.4,
+        dpi=300
+    ];
+
+    node [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=11,
+        fontcolor="#FFFFFF",
+        style="filled,rounded",
+        shape=rect,
+        margin="0.2,0.12",
+        penwidth=1.5
+    ];
+
+    edge [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=9,
+        fontcolor="#94A3B8",
+        color="#38BDF8",
+        penwidth=1.5,
+        arrowsize=0.8
+    ];
+
+    // External Entities
+    subgraph cluster_entities {
+        label="EXTERNAL ENTITIES";
+        fontcolor="#CBD5E1";
+        fontsize=11;
+        color="#334155";
+        bgcolor="#1E293B";
+        style="dashed";
+
+        ent_kernel   [label="[External Entity]\nLinux Kernel & Procfs", fillcolor="#475569", color="#94A3B8", shape=box];
+        ent_syslog   [label="[External Entity]\nAuth Logs & Journald", fillcolor="#475569", color="#94A3B8", shape=box];
+        ent_user     [label="[External Entity]\nSecurity Operator", fillcolor="#0D9488", color="#2DD4BF", shape=box];
+        ent_notify   [label="[External Entity]\nDesktop Notification Daemon", fillcolor="#475569", color="#94A3B8", shape=box];
+    }
+
+    // Data Stores
+    subgraph cluster_stores {
+        label="DATA STORES";
+        fontcolor="#34D399";
+        fontsize=11;
+        color="#065F46";
+        bgcolor="#064E3B";
+        style="dashed";
+
+        store_cfg     [label="D1 | Config Files\n(thresholds & monitored_files)", shape=record, fillcolor="#047857", color="#6EE7B7"];
+        store_base    [label="D2 | Baselines Cache\n(FIM Hashes & Startup Ports)", shape=record, fillcolor="#047857", color="#6EE7B7"];
+        store_events  [label="D3 | In-Memory Ring Buffer\n(Last 1,000 Events)", shape=record, fillcolor="#047857", color="#6EE7B7"];
+        store_disklog [label="D4 | Persistent Event Log\n(~/.local/share/vigil/events.log)", shape=record, fillcolor="#047857", color="#6EE7B7"];
+    }
+
+    // Processes
+    p1 [label="1.0 Ingest System Telemetry\n(CPU, RAM, /proc parser)", fillcolor="#1E40AF", color="#60A5FA", shape=ellipse];
+    p2 [label="2.0 Correlate Network Sockets\n(Hex decode, Inode mapping)", fillcolor="#1E40AF", color="#60A5FA", shape=ellipse];
+    p3 [label="3.0 Monitor File Integrity\n(SHA-256 diff vs baseline)", fillcolor="#1E40AF", color="#60A5FA", shape=ellipse];
+    p4 [label="4.0 Analyze SSH Activity\n(Regex parse & brute-force tracker)", fillcolor="#1E40AF", color="#60A5FA", shape=ellipse];
+    p5 [label="5.0 Evaluate Security Rules\n(Anomaly matching & deduplication)", fillcolor="#BE123C", color="#FB7185", shape=ellipse];
+    p6 [label="6.0 Dispatch Alerts & Log\n(Threshold gate, JSONL format)", fillcolor="#047857", color="#34D399", shape=ellipse];
+    p7 [label="7.0 Render Dashboard UI\n(Snapshots, Sort, Filter & Key Input)", fillcolor="#6B21A8", color="#C084FC", shape=ellipse];
+
+    // Data Flows
+    store_cfg -> p1 [label="monitored paths"];
+    store_cfg -> p6 [label="alert thresholds"];
+
+    ent_kernel -> p1 [label="raw /proc counters"];
+    ent_kernel -> p2 [label="/proc/net tables & fd inodes"];
+    ent_kernel -> p3 [label="file mtime & contents"];
+    ent_syslog -> p4 [label="auth log lines"];
+
+    p3 -> store_base [label="initial file hashes"];
+    store_base -> p3 [label="baseline compare"];
+
+    p2 -> store_base [label="initial listening ports"];
+    store_base -> p2 [label="baseline compare"];
+
+    p1 -> p5 [label="ProcessInfo list"];
+    p2 -> p5 [label="new ports & active sockets"];
+
+    p5 -> p6 [label="security alerts"];
+    p3 -> p6 [label="file tampering events"];
+    p4 -> p6 [label="auth & brute force events"];
+    p2 -> p6 [label="port & connection events"];
+
+    p6 -> store_events [label="push Event"];
+    p6 -> store_disklog [label="write JSONL record"];
+    p6 -> ent_notify [label="desktop notification popup"];
+
+    store_events -> p7 [label="snapshot() copy"];
+    p1 -> p7 [label="CPU, RAM & procs snapshot"];
+    p2 -> p7 [label="connections snapshot"];
+
+    ent_user -> p7 [label="keystrokes (search, sort, tab)"];
+    p7 -> ent_user [label="ANSI terminal frames"];
+}

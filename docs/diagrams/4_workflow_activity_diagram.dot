@@ -1,0 +1,154 @@
+digraph WorkflowActivity {
+    graph [
+        rankdir=TB,
+        bgcolor="#0F172A",
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=16,
+        fontcolor="#F8FAFC",
+        label="\n<< VIGIL — RUNTIME WORKFLOW & ACTIVITY DIAGRAM >>\n ",
+        labelloc=t,
+        nodesep=0.4,
+        ranksep=0.6,
+        pad=0.4,
+        dpi=300
+    ];
+
+    node [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=10,
+        fontcolor="#FFFFFF",
+        style="filled,rounded",
+        shape=rect,
+        margin="0.18,0.1",
+        penwidth=1.5
+    ];
+
+    edge [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=9,
+        fontcolor="#94A3B8",
+        color="#38BDF8",
+        penwidth=1.5,
+        arrowsize=0.8
+    ];
+
+    start_node [label="Start Vigil Application", shape=circle, fillcolor="#10B981", color="#6EE7B7", width=1.3, fontweight="bold"];
+
+    subgraph cluster_init {
+        label="INITIALIZATION PHASE";
+        fontcolor="#38BDF8";
+        fontsize=11;
+        color="#0284C7";
+        bgcolor="#1E293B";
+        style="rounded,dashed";
+
+        step_sig    [label="Install Signal Handlers\n(SIGINT & SIGTERM -> g_shutdown_cv)", fillcolor="#1E3A8A", color="#60A5FA"];
+        step_cfg    [label="Load AppConfig & Thresholds\n(config/thresholds.conf & monitored_files.conf)", fillcolor="#1E3A8A", color="#60A5FA"];
+        step_log    [label="Initialize EventLog & Alerter\n(Ring buffer & persistent JSONL path)", fillcolor="#1E3A8A", color="#60A5FA"];
+        step_base   [label="Establish Baselines\n(Initial network listening ports & FIM SHA-256)", fillcolor="#1E3A8A", color="#60A5FA"];
+        step_thread [label="Launch Worker Threads\n(SshMonitor thread & FileIntegrityMonitor thread)", fillcolor="#1E3A8A", color="#60A5FA"];
+    }
+
+    start_node -> step_sig -> step_cfg -> step_log -> step_base -> step_thread;
+
+    // Concurrency Fork
+    fork_node [label="Concurrent Execution Fork", shape=record, fillcolor="#0284C7", color="#38BDF8", height=0.15, width=4.0];
+    step_thread -> fork_node;
+
+    // Concurrent Pipeline 1: Data Thread
+    subgraph cluster_data_pipe {
+        label="DATA COLLECTION & SECURITY ENGINE (2s Cycle)";
+        fontcolor="#FB7185";
+        fontsize=11;
+        color="#E11D48";
+        bgcolor="#24131D";
+        style="rounded";
+
+        d_refresh [label="Refresh Hardware & OS State\n(proc_mon, net_mon, cpu_mon, mem_mon)", fillcolor="#9F1239", color="#F43F5E"];
+        d_correlate [label="Correlate Inodes to PIDs\n(Resolve /proc/[PID]/fd socket links)", fillcolor="#9F1239", color="#F43F5E"];
+        d_eval [label="Evaluate Security Rules\n(Tmp paths, deleted exe, root check, new ports)", fillcolor="#BE123C", color="#FB7185", fontweight="bold"];
+        d_decision [label="Anomaly\nDetected?", shape=diamond, fillcolor="#881337", color="#E11D48"];
+        d_push [label="Deduplicate & Push Event\n(Emit to EventLog & trigger Alerter)", fillcolor="#BE123C", color="#FB7185"];
+        d_sleep [label="Sleep 2s\n(wait on g_shutdown_cv)", fillcolor="#9F1239", color="#F43F5E"];
+    }
+
+    fork_node -> d_refresh [color="#FB7185"];
+    d_refresh -> d_correlate -> d_eval -> d_decision;
+    d_decision -> d_push [label="Yes", color="#F43F5E"];
+    d_decision -> d_sleep [label="No", color="#94A3B8"];
+    d_push -> d_sleep;
+    d_sleep -> d_refresh [label="Loop while g_running", color="#FB7185", style="dashed"];
+
+    // Concurrent Pipeline 2: FIM Thread
+    subgraph cluster_fim_pipe {
+        label="FILE INTEGRITY WORKER (10s Cycle)";
+        fontcolor="#34D399";
+        fontsize=11;
+        color="#059669";
+        bgcolor="#0F241A";
+        style="rounded";
+
+        f_scan [label="Recursive Directory Scan\n(Collect regular files & mtime)", fillcolor="#065F46", color="#34D399"];
+        f_hash [label="Compute SHA-256 for Modified Files\n(Skip hashing if size/mtime match)", fillcolor="#065F46", color="#34D399"];
+        f_check [label="File Tampered,\nCreated or Deleted?", shape=diamond, fillcolor="#047857", color="#10B981"];
+        f_emit [label="Emit FIM Event\n(Category::FILE with hash diff)", fillcolor="#047857", color="#34D399"];
+        f_wait [label="Sleep 10s\n(wait on cv_)", fillcolor="#065F46", color="#34D399"];
+    }
+
+    fork_node -> f_scan [color="#34D399"];
+    f_scan -> f_hash -> f_check;
+    f_check -> f_emit [label="Yes", color="#34D399"];
+    f_check -> f_wait [label="No", color="#94A3B8"];
+    f_emit -> f_wait;
+    f_wait -> f_scan [label="Loop while running_", color="#34D399", style="dashed"];
+
+    // Concurrent Pipeline 3: SSH Monitor
+    subgraph cluster_ssh_pipe {
+        label="SSH AUTH MONITOR (Continuous)";
+        fontcolor="#38BDF8";
+        fontsize=11;
+        color="#0284C7";
+        bgcolor="#132338";
+        style="rounded";
+
+        s_tail [label="Tail auth.log / journalctl\n(Stream lines in real-time)", fillcolor="#0369A1", color="#38BDF8"];
+        s_parse [label="Regex Extract Type, User & IP\n(Accepted, Failed, Invalid User)", fillcolor="#0369A1", color="#38BDF8"];
+        s_brute [label="Window Failures >=\nThreshold?", shape=diamond, fillcolor="#0284C7", color="#7DD3FC"];
+        s_alarm [label="Emit SSH Brute Force Alert\n(Category::AUTH, HIGH Severity)", fillcolor="#0284C7", color="#7DD3FC"];
+    }
+
+    fork_node -> s_tail [color="#38BDF8"];
+    s_tail -> s_parse -> s_brute;
+    s_brute -> s_alarm [label="Yes", color="#7DD3FC"];
+    s_brute -> s_tail [label="No", color="#94A3B8"];
+    s_alarm -> s_tail;
+
+    // Concurrent Pipeline 4: UI Event Loop
+    subgraph cluster_ui_pipe {
+        label="INTERACTIVE TUI EVENT LOOP (50ms select)";
+        fontcolor="#C084FC";
+        fontsize=11;
+        color="#9333EA";
+        bgcolor="#231330";
+        style="rounded";
+
+        u_snapshot [label="Capture Local Snapshots\n(Thread-safe copy of procs & conns)", fillcolor="#6B21A8", color="#C084FC"];
+        u_render   [label="Draw Double-Buffered ANSI TUI\n(Overview, Procs, Network, Events)", fillcolor="#6B21A8", color="#C084FC"];
+        u_select   [label="select() on STDIN (50ms)\n(Non-blocking input multiplexer)", fillcolor="#7E22CE", color="#C084FC"];
+        u_key_dec  [label="Key Pressed?", shape=diamond, fillcolor="#581C87", color="#9333EA"];
+        u_handle   [label="Handle Navigation / Sort / Search\n(Tab, 1-4, c/m/p, /, Enter)", fillcolor="#6B21A8", color="#C084FC"];
+    }
+
+    fork_node -> u_snapshot [color="#C084FC"];
+    u_snapshot -> u_render -> u_select -> u_key_dec;
+    u_key_dec -> u_handle [label="Yes", color="#C084FC"];
+    u_key_dec -> u_snapshot [label="No / Timeout", color="#94A3B8"];
+    u_handle -> u_snapshot [label="Continue loop", style="dashed", color="#C084FC"];
+
+    // Teardown
+    join_node [label="Graceful Shutdown & Resource Teardown\n(q pressed OR SIGINT/SIGTERM -> Join Threads -> Restore Terminal)", shape=box, fillcolor="#B91C1C", color="#F87171", fontweight="bold"];
+    end_node [label="Clean Exit (0)", shape=circle, fillcolor="#10B981", color="#6EE7B7", width=1.1, fontweight="bold"];
+
+    u_handle -> join_node [label="User pressed 'q'", color="#F87171"];
+    join_node -> end_node;
+}

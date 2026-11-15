@@ -1,0 +1,108 @@
+digraph UseCaseDiagram {
+    graph [
+        rankdir=LR,
+        bgcolor="#0F172A",
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=16,
+        fontcolor="#F8FAFC",
+        label="\n<< VIGIL — SECURITY & MONITORING USE-CASE DIAGRAM >>\n ",
+        labelloc=t,
+        nodesep=0.4,
+        ranksep=0.8,
+        pad=0.4,
+        dpi=300
+    ];
+
+    node [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=10,
+        fontcolor="#FFFFFF",
+        style="filled",
+        penwidth=1.5
+    ];
+
+    edge [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=8,
+        fontcolor="#94A3B8",
+        color="#38BDF8",
+        penwidth=1.3,
+        arrowsize=0.7
+    ];
+
+    // Actors
+    actor_admin [
+        label="Security Operator /\nSystem Administrator",
+        shape=circle,
+        width=1.6,
+        fillcolor="#0D9488",
+        color="#2DD4BF",
+        fontsize=11,
+        fontweight="bold"
+    ];
+
+    actor_attacker [
+        label="External Attacker /\nMalicious Process",
+        shape=circle,
+        width=1.6,
+        fillcolor="#991B1B",
+        color="#F87171",
+        fontsize=11,
+        fontweight="bold"
+    ];
+
+    // Use Cases Subgraph
+    subgraph cluster_vigil_boundary {
+        label="VIGIL APPLICATION BOUNDARY";
+        fontcolor="#38BDF8";
+        fontsize=13;
+        color="#0284C7";
+        bgcolor="#1E293B";
+        style="rounded,dashed";
+
+        node [shape=ellipse, fillcolor="#1E3A8A", color="#38BDF8", margin="0.15,0.08"];
+
+        uc_overview     [label="View System Resource Overview\n(Per-core CPU & RAM Usage)"];
+        uc_proc_table   [label="Monitor & Filter Processes\n(Search by name, sort c/m/p)"];
+        uc_proc_detail  [label="Inspect Process File Descriptors\n(Live FD count inspection)"];
+        uc_net_conn     [label="Inspect Network Activity\n(Active TCP/UDP sockets & Rates)"];
+        uc_detect_tmp   [label="Detect Suspicious Path Execution\n(/tmp, /dev/shm, /run/user)"];
+        uc_detect_del   [label="Detect Deleted Running Binaries\n(/proc/[PID]/exe deleted)"];
+        uc_detect_root  [label="Detect Suspicious Root Escalation\n(UID=0 from /tmp -> CRITICAL)"];
+        uc_detect_ports [label="Detect Newly Bound Listening Ports\n(Dynamic comparison vs baseline)"];
+        uc_detect_out   [label="Detect Suspicious Outbound Connection\n(Temp process outbound socket)"];
+        uc_fim          [label="Monitor Critical File Integrity\n(Detect Creation/Modification/Deletion)"];
+        uc_ssh_fail     [label="Detect SSH Auth Failures\n(Failed password & invalid user)"];
+        uc_ssh_brute    [label="Detect SSH Brute-Force Attacks\n(Sliding time-window threshold)"];
+        uc_event_search [label="Search & Filter Event History\n(Category filter & full-text query)"];
+        uc_alert_notify [label="Receive Audio & Desktop Alerts\n(Terminal bell & notify-send)"];
+    }
+
+    // Actor Connections
+    actor_admin -> uc_overview;
+    actor_admin -> uc_proc_table;
+    actor_admin -> uc_net_conn;
+    actor_admin -> uc_event_search;
+    actor_admin -> uc_alert_notify [dir=back, label="notified by"];
+
+    uc_proc_table -> uc_proc_detail [label="<<extend>>", style="dashed", color="#A855F7"];
+
+    // Threat Interactions
+    actor_attacker -> uc_detect_tmp   [label="spawns malware", color="#F87171", style="dashed"];
+    actor_attacker -> uc_detect_del   [label="unlinks binary", color="#F87171", style="dashed"];
+    actor_attacker -> uc_detect_root  [label="privilege escalation", color="#F87171", style="dashed"];
+    actor_attacker -> uc_detect_ports [label="binds listener", color="#F87171", style="dashed"];
+    actor_attacker -> uc_detect_out   [label="C2 outbound", color="#F87171", style="dashed"];
+    actor_attacker -> uc_fim          [label="tampers /etc files", color="#F87171", style="dashed"];
+    actor_attacker -> uc_ssh_fail     [label="credential guess", color="#F87171", style="dashed"];
+    actor_attacker -> uc_ssh_brute    [label="brute-force burst", color="#F87171", style="dashed"];
+
+    // Extensions & Inclusions
+    uc_detect_tmp   -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_detect_del   -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_detect_root  -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_detect_ports -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_detect_out   -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_fim          -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+    uc_ssh_brute    -> uc_alert_notify [label="<<include>>", style="dashed", color="#34D399"];
+}

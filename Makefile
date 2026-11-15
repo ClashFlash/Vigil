@@ -1,4 +1,4 @@
-.PHONY: all debug release test clean run
+.PHONY: all debug release test clean run showcase test-features demo simulate diagrams
 
 BUILD_DIR_DEBUG   := build/debug
 BUILD_DIR_RELEASE := build/release
@@ -18,6 +18,20 @@ release:
 
 test: debug
 	cd $(BUILD_DIR_DEBUG) && ctest --output-on-failure -j$(CORES)
+
+showcase: release
+	./$(BUILD_DIR_RELEASE)/tests/showcase_features
+
+test-features: release
+	./test_features.py
+
+demo: release
+	./simulate_events.py
+
+simulate: demo
+
+diagrams:
+	python3 scripts/generate_diagrams.py
 
 run: debug
 	./$(BUILD_DIR_DEBUG)/vigil

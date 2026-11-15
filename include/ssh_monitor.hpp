@@ -52,6 +52,9 @@ public:
     // Parse a single auth.log line (public for unit testing)
     static std::optional<AuthEvent> parse_line(const std::string& line);
 
+    // Feed an auth log line directly (for testing/simulation)
+    void feed_line(const std::string& line);
+
 private:
     std::shared_ptr<events::EventLog> event_log_;
     int                               threshold_;

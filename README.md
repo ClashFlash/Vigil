@@ -137,6 +137,11 @@ The event log is stored as JSON Lines at:
 
 Vigil separates system collectors, detection logic, event handling, and terminal presentation.
 
+![Vigil System Architecture](docs/diagrams/1_system_architecture.png)
+
+> 📘 **Full Architecture & Design Specifications:**  
+> For comprehensive system diagrams including **Data Flow Diagrams (Level 1 DFD)**, **Use-Case Diagrams**, and **Runtime Workflow/Activity State Diagrams**, see [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md).
+
 ```text
 main.cpp                  Startup orchestration, signals, and shutdown
 ├── cpu.{hpp,cpp}         /proc/stat parsing and CPU utilization

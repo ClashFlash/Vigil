@@ -1,0 +1,202 @@
+digraph SystemArchitecture {
+    graph [
+        rankdir=TB,
+        bgcolor="#0F172A",
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=16,
+        fontcolor="#F8FAFC",
+        label="\n<< VIGIL — OVERALL SYSTEM ARCHITECTURE >>\n ",
+        labelloc=t,
+        nodesep=0.5,
+        ranksep=0.7,
+        pad=0.4,
+        dpi=300
+    ];
+
+    node [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=11,
+        fontcolor="#FFFFFF",
+        style="filled,rounded",
+        shape=rect,
+        margin="0.22,0.12",
+        penwidth=1.5
+    ];
+
+    edge [
+        fontname="Helvetica Neue, Arial, sans-serif",
+        fontsize=9,
+        fontcolor="#94A3B8",
+        color="#38BDF8",
+        penwidth=1.5,
+        arrowsize=0.8
+    ];
+
+    // Layer 1: Linux Host & OS
+    subgraph cluster_os {
+        label="HOST OPERATING SYSTEM & KERNEL SUBSYSTEMS";
+        fontcolor="#94A3B8";
+        fontsize=12;
+        color="#334155";
+        bgcolor="#1E293B";
+        style="dashed,rounded";
+
+        proc_stat [label="/proc/stat\n(CPU ticks & per-core counters)", fillcolor="#334155", color="#64748B"];
+        proc_mem  [label="/proc/meminfo\n(RAM, buffers, cache, swap)", fillcolor="#334155", color="#64748B"];
+        proc_pid  [label="/proc/[PID]/*\n(stat, status, exe symlink, fd/*)", fillcolor="#334155", color="#64748B"];
+        proc_net  [label="/proc/net/tcp, tcp6, udp, dev\n(Active sockets & interface traffic)", fillcolor="#334155", color="#64748B"];
+        auth_logs [label="/var/log/auth.log & journalctl\n(SSH auth attempts, PAM events)", fillcolor="#334155", color="#64748B"];
+        fs_paths  [label="Monitored Filesystem Paths\n(/etc/passwd, /etc/shadow, watched dirs)", fillcolor="#334155", color="#64748B"];
+    }
+
+    // Layer 2: Ingestion & Telemetry Monitors
+    subgraph cluster_monitors {
+        label="VIGIL INGESTION & DATA COLLECTION ENGINES (lsm_lib)";
+        fontcolor="#38BDF8";
+        fontsize=12;
+        color="#0284C7";
+        bgcolor="#132338";
+        style="rounded";
+
+        cpu_mon  [label="CpuMonitor\nDelta calculations & Core utilization", fillcolor="#0369A1", color="#38BDF8"];
+        mem_mon  [label="MemoryMonitor\nRAM calculation & swap metrics", fillcolor="#0369A1", color="#38BDF8"];
+        proc_mon [label="ProcessMonitor\n/proc scanner, PID sorting & FD cache", fillcolor="#0369A1", color="#38BDF8"];
+        net_mon  [label="NetworkMonitor\nHex decoders, Inode resolver & Port diff", fillcolor="#0369A1", color="#38BDF8"];
+        ssh_mon  [label="SshMonitor (Worker Thread)\nReal-time log tailer & sliding window", fillcolor="#0284C7", color="#7DD3FC"];
+        fim_mon  [label="FileIntegrityMonitor (Worker Thread)\nRFC SHA-256 hasher & recursive scanner", fillcolor="#0284C7", color="#7DD3FC"];
+    }
+
+    // Connect OS to Ingestion
+    proc_stat -> cpu_mon [label="tick deltas"];
+    proc_mem  -> mem_mon [label="memory bytes"];
+    proc_pid  -> proc_mon [label="stat / exe readlink"];
+    proc_net  -> net_mon [label="hex socket tables"];
+    proc_pid  -> net_mon [label="socket inode mapping"];
+    auth_logs -> ssh_mon [label="syslog / journal stream"];
+    fs_paths  -> fim_mon [label="file mtime & SHA-256"];
+
+    // Layer 3: Security Rules Engine
+    subgraph cluster_rules {
+        label="DETECTION & SECURITY RULES ENGINE";
+        fontcolor="#F43F5E";
+        fontsize=12;
+        color="#E11D48";
+        bgcolor="#2D1522";
+        style="rounded";
+
+        sec_engine [
+            label="rules::SecurityEngine\n(Pure Rule Evaluation + Deduplication)",
+            fillcolor="#BE123C",
+            color="#FB7185",
+            fontsize=12,
+            fontweight="bold"
+        ];
+
+        rule_tmp     [label="check_tmp_process\n(/tmp, /dev/shm, /run/user)", fillcolor="#881337", color="#E11D48"];
+        rule_del     [label="check_deleted_exe\n(Unlinked running binary)", fillcolor="#881337", color="#E11D48"];
+        rule_root    [label="check_root_suspicious\n(UID=0 from /tmp -> CRITICAL)", fillcolor="#9F1239", color="#F43F5E"];
+        rule_port    [label="check_new_listening_port\n(Dynamic port delta)", fillcolor="#881337", color="#E11D48"];
+        rule_out     [label="check_suspicious_outbound\n(Temp process outbound socket)", fillcolor="#881337", color="#E11D48"];
+        rule_dedup   [label="Alert Deduplicator\nstd::set<pid, rule_name>", fillcolor="#4C0519", color="#BE123C"];
+    }
+
+    proc_mon -> sec_engine [label="ProcessInfo vector", color="#FB7185"];
+    net_mon  -> sec_engine [label="new_ports & connections", color="#FB7185"];
+    sec_engine -> rule_tmp;
+    sec_engine -> rule_del;
+    sec_engine -> rule_root;
+    sec_engine -> rule_port;
+    sec_engine -> rule_out;
+    sec_engine -> rule_dedup;
+
+    // Layer 4: Event System, Alerting & Storage
+    subgraph cluster_events {
+        label="EVENT DISPATCH, LOGGING & ALERTING";
+        fontcolor="#34D399";
+        fontsize=12;
+        color="#059669";
+        bgcolor="#102820";
+        style="rounded";
+
+        event_log [
+            label="events::EventLog\n(Thread-Safe In-Memory Ring Buffer, 1000 items)",
+            fillcolor="#047857",
+            color="#34D399",
+            fontsize=12,
+            fontweight="bold"
+        ];
+
+        persistent_log [
+            label="Persistent Storage\n~/.local/share/vigil/events.log (JSONL)",
+            fillcolor="#064E3B",
+            color="#10B981",
+            shape=cylinder
+        ];
+
+        alerter [
+            label="alert::Alerter (Severity Gated)\nThreshold evaluation & alert dispatch",
+            fillcolor="#047857",
+            color="#34D399"
+        ];
+
+        terminal_bell [label="Terminal Bell (\a)\nRate-limited visible alert", fillcolor="#064E3B", color="#6EE7B7"];
+        desktop_popup [label="notify-send Alert\nDouble-fork async notification", fillcolor="#064E3B", color="#6EE7B7"];
+    }
+
+    sec_engine -> event_log [label="Security alerts", color="#F43F5E"];
+    ssh_mon    -> event_log [label="Auth failure / Brute force", color="#7DD3FC"];
+    fim_mon    -> event_log [label="File Created / Modified / Deleted", color="#7DD3FC"];
+    net_mon    -> event_log [label="Port / Closed conn events", color="#38BDF8"];
+
+    event_log -> persistent_log [label="Append JSON line", color="#34D399"];
+    event_log -> alerter [label="on_event callback", color="#34D399"];
+    alerter -> terminal_bell [label="Sev >= Bell Threshold"];
+    alerter -> desktop_popup [label="Sev >= Notify Threshold"];
+
+    // Layer 5: Presentation & User Interface
+    subgraph cluster_ui {
+        label="PRESENTATION LAYER (ui::Terminal TUI)";
+        fontcolor="#C084FC";
+        fontsize=12;
+        color="#9333EA";
+        bgcolor="#241335";
+        style="rounded";
+
+        ui_loop [
+            label="ui::Terminal & Event Loop\nPOSIX select() 50ms polling on STDIN",
+            fillcolor="#7E22CE",
+            color="#C084FC",
+            fontsize=12,
+            fontweight="bold"
+        ];
+
+        panel_overview [label="Overview Panel\n(CPU per-core bars, RAM ratio)", fillcolor="#581C87", color="#A855F7"];
+        panel_procs    [label="Processes Panel\n(Sorting, Search filter, Anomaly color)", fillcolor="#581C87", color="#A855F7"];
+        panel_net      [label="Network Panel\n(Interfaces, Socket table, Rate metrics)", fillcolor="#581C87", color="#A855F7"];
+        panel_events   [label="Events Panel\n(Category filter, Keyword search, JSON feed)", fillcolor="#581C87", color="#A855F7"];
+    }
+
+    proc_mon -> ui_loop [label="Thread-safe procs_snapshot", color="#C084FC"];
+    net_mon  -> ui_loop [label="Thread-safe conns_snapshot", color="#C084FC"];
+    cpu_mon  -> ui_loop [label="Live CPU counters", color="#C084FC"];
+    mem_mon  -> ui_loop [label="Live memory metrics", color="#C084FC"];
+    event_log -> ui_loop [label="snapshot() copy", color="#C084FC"];
+
+    ui_loop -> panel_overview;
+    ui_loop -> panel_procs;
+    ui_loop -> panel_net;
+    ui_loop -> panel_events;
+
+    // Operator Actor
+    operator [
+        label="System Administrator / Security Operator\n(Interactive Keyboard Navigation: Tab, 1-4, /, c/m/p, Enter, q)",
+        shape=ellipse,
+        fillcolor="#0F766E",
+        color="#2DD4BF",
+        fontsize=12,
+        fontweight="bold"
+    ];
+
+    operator -> ui_loop [label="Key input stream", color="#2DD4BF", penwidth=2.0];
+    ui_loop -> operator [label="ANSI TrueColor 24-bit Raw Buffer", color="#C084FC", penwidth=2.0];
+}

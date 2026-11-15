@@ -107,8 +107,12 @@ std::map<std::string, IpStats> SshMonitor::ip_stats() const {
 }
 
 std::string SshMonitor::find_auth_log() {
-    // Try common locations
-    for (const auto& p : {"/var/log/auth.log", "/var/log/secure"}) {
+    // 1. Environment variable override
+    const char* env_path = std::getenv("VIGIL_AUTH_LOG");
+    if (env_path && std::filesystem::exists(env_path)) return env_path;
+
+    // 2. Try common locations + user/demo log
+    for (const auto& p : {"/var/log/auth.log", "/var/log/secure", "/tmp/vigil_auth.log"}) {
         if (std::filesystem::exists(p)) return p;
     }
     return ""; // Will fall back to journalctl
@@ -194,6 +198,10 @@ void SshMonitor::process_line(const std::string& line) {
     }
 }
 
+void SshMonitor::feed_line(const std::string& line) {
+    process_line(line);
+}
+
 void SshMonitor::tail_loop() {
     std::string log_path = find_auth_log();
 
@@ -219,7 +227,7 @@ void SshMonitor::tail_loop() {
         std::set<std::string> seen_lines;
         {
             FILE* pipe = popen(
-                "journalctl -u ssh -u sshd -n 50 --no-pager --output=short 2>/dev/null",
+                "journalctl _SYSTEMD_UNIT=ssh.service + _SYSTEMD_UNIT=sshd.service + SYSLOG_IDENTIFIER=sshd -n 50 --no-pager --output=short 2>/dev/null",
                 "r");
             if (pipe) {
                 char buf[512];
@@ -237,7 +245,7 @@ void SshMonitor::tail_loop() {
             }
 
             FILE* pipe = popen(
-                "journalctl -u ssh -u sshd -n 50 --no-pager --output=short 2>/dev/null",
+                "journalctl _SYSTEMD_UNIT=ssh.service + _SYSTEMD_UNIT=sshd.service + SYSLOG_IDENTIFIER=sshd -n 50 --no-pager --output=short 2>/dev/null",
                 "r");
             if (pipe) {
                 char buf[512];
